@@ -2,13 +2,12 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
-// ⚠️ GitHub Pagesで公開する場合、ここをあなたのリポジトリ名に合わせて変更してください。
-// 例: リポジトリ名が "nitorol-log" なら "/nitorol-log/" のままでOKです。
-// 例: リポジトリ名が "my-app" なら "/my-app/" に変更してください。
-const REPO_NAME = "nitorol-log";
+// Netlifyなどのプロジェクト専用ドメイン(例: nitorol-log.netlify.app)はルート("/")で
+// 公開されるため、サブパスは不要。他のPWAと同じオリジンを共有しないことがAndroidで
+// 独立アプリとしてインストールできるための前提になる。
 
 export default defineConfig({
-  base: `/${REPO_NAME}/`,
+  base: "/",
   plugins: [
     react(),
     VitePWA({
@@ -22,8 +21,9 @@ export default defineConfig({
         background_color: "#F6F4EF",
         display: "standalone",
         orientation: "portrait",
-        start_url: `/${REPO_NAME}/`,
-        scope: `/${REPO_NAME}/`,
+        id: "/",
+        start_url: "/",
+        scope: "/",
         lang: "ja",
         icons: [
           { src: "icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

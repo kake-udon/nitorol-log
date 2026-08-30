@@ -13,6 +13,10 @@ import {
   Stethoscope,
   StickyNote,
   Check,
+  Settings,
+  AlertTriangle,
+  Plus,
+  X,
 } from "lucide-react";
 
 /* ---------------------------------------------------------------
@@ -43,11 +47,47 @@ const PAIN_LEVELS = [
   { key: "強い", color: COLORS.high, bg: COLORS.highBg },
 ];
 
-const LOCATION_CHIPS = ["自宅", "職場", "外出先", "移動中"];
-const ACTIVITY_CHIPS = ["安静にしていた", "家事をしていた", "歩いていた", "運動していた"];
+const DEFAULT_LOCATION_CHIPS = ["自宅", "職場", "外出先", "移動中"];
+const DEFAULT_ACTIVITY_CHIPS = ["安静にしていた", "家事をしていた", "歩いていた", "運動していた"];
 
 const STORAGE_KEY = "nitorol-records-v1";
 const STORAGE_KEY_VISITS = "nitorol-visits-v1";
+const STORAGE_KEY_LOCATION_PRESETS = "nitorol-location-presets-v1";
+const STORAGE_KEY_ACTIVITY_PRESETS = "nitorol-activity-presets-v1";
+
+const CAUTION_SECTIONS = [
+  {
+    title: "服用に関する注意",
+    items: [
+      "ニトロールは医師・薬剤師から指示された用法・用量を必ず守って使用してください。",
+      "自己判断で使用回数や量を増やさないでください。",
+      "座った姿勢または横になった状態で使用してください。血圧低下によりめまいや立ちくらみを起こすことがあります。",
+    ],
+  },
+  {
+    title: "症状が改善しないとき",
+    items: [
+      "使用しても胸の痛みなどの症状が続く、または悪化する場合は、すぐに医療機関を受診するか救急要請(119番)をしてください。",
+      "指示された使用回数を超えても症状が改善しない場合は、自己判断で様子を見ずに速やかに医師へ連絡してください。",
+    ],
+  },
+  {
+    title: "保管方法",
+    items: [
+      "直射日光や高温多湿を避けて保管してください。",
+      "使用期限を定期的に確認し、期限切れの薬は使用しないでください。",
+      "小児の手の届かない場所に保管してください。",
+    ],
+  },
+  {
+    title: "このアプリについて",
+    items: [
+      "このアプリは服用の記録を補助するツールであり、診断や治療方針を示すものではありません。",
+      "記録内容はこの端末のブラウザ内にのみ保存され、外部へ送信されることはありません。",
+      "体調に不安がある場合は、必ず主治医にご相談ください。",
+    ],
+  },
+];
 
 /* ---------------------------------------------------------------
    ユーティリティ
@@ -190,7 +230,7 @@ function PainBadge({ pain, small }) {
 /* ---------------------------------------------------------------
    ホーム画面
 --------------------------------------------------------------- */
-function HomeScreen({ records, onNewRecord, onEditRecord, onGoHistory, onReset }) {
+function HomeScreen({ records, onNewRecord, onEditRecord, onGoHistory, onGoPresets, onGoCaution, onReset }) {
   const sorted = [...records].sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
   const latest = sorted[0];
 
@@ -254,6 +294,15 @@ function HomeScreen({ records, onNewRecord, onEditRecord, onGoHistory, onReset }
         </button>
       )}
 
+      <div style={{ display: "flex", gap: 10, margin: "12px 18px 0" }}>
+        <button onClick={onGoPresets} style={styles.secondaryLink}>
+          <Settings size={13} /> プリセットを編集
+        </button>
+        <button onClick={onGoCaution} style={styles.secondaryLink}>
+          <AlertTriangle size={13} /> 使用上の注意
+        </button>
+      </div>
+
       <div style={{ flex: 1 }} />
       {records.length > 0 && (
         <button onClick={onReset} style={styles.resetLink}>
@@ -267,7 +316,7 @@ function HomeScreen({ records, onNewRecord, onEditRecord, onGoHistory, onReset }
 /* ---------------------------------------------------------------
    記録・編集フォーム画面
 --------------------------------------------------------------- */
-function FormScreen({ draft, isEditing, onChange, onSave, onCancel, onDelete }) {
+function FormScreen({ draft, isEditing, locationPresets, activityPresets, onChange, onSave, onCancel, onDelete }) {
   return (
     <div style={styles.screen}>
       <Header title={isEditing ? "記録を修正" : "服用を記録"} onBack={onCancel} />
@@ -289,7 +338,7 @@ function FormScreen({ draft, isEditing, onChange, onSave, onCancel, onDelete }) 
             onChange={(e) => onChange({ ...draft, location: e.target.value })}
             style={styles.input}
           />
-          <ChipRow options={LOCATION_CHIPS} value={draft.location} onPick={(v) => onChange({ ...draft, location: v })} />
+          <ChipRow options={locationPresets} value={draft.location} onPick={(v) => onChange({ ...draft, location: v })} />
         </Field>
 
         <Field icon={<MessageSquareText size={16} color={COLORS.inkMuted} />} label="何をしていたか">
@@ -300,7 +349,7 @@ function FormScreen({ draft, isEditing, onChange, onSave, onCancel, onDelete }) 
             onChange={(e) => onChange({ ...draft, activity: e.target.value })}
             style={styles.input}
           />
-          <ChipRow options={ACTIVITY_CHIPS} value={draft.activity} onPick={(v) => onChange({ ...draft, activity: v })} />
+          <ChipRow options={activityPresets} value={draft.activity} onPick={(v) => onChange({ ...draft, activity: v })} />
         </Field>
 
         <Field label="痛みの強さ">
@@ -370,6 +419,125 @@ function ChipRow({ options, value, onPick }) {
           {opt}
         </button>
       ))}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   プリセット編集画面
+--------------------------------------------------------------- */
+function PresetsScreen({ locationPresets, activityPresets, onUpdateLocation, onUpdateActivity, onBack }) {
+  return (
+    <div style={styles.screen}>
+      <Header title="プリセットの編集" onBack={onBack} />
+      <div style={{ padding: "18px 18px 40px", overflowY: "auto" }}>
+        <PresetEditor
+          icon={<MapPin size={16} color={COLORS.inkMuted} />}
+          label="場所のプリセット"
+          placeholder="例: 実家"
+          items={locationPresets}
+          defaults={DEFAULT_LOCATION_CHIPS}
+          onChange={onUpdateLocation}
+        />
+        <PresetEditor
+          icon={<MessageSquareText size={16} color={COLORS.inkMuted} />}
+          label="していたことのプリセット"
+          placeholder="例: 入浴していた"
+          items={activityPresets}
+          defaults={DEFAULT_ACTIVITY_CHIPS}
+          onChange={onUpdateActivity}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PresetEditor({ icon, label, placeholder, items, defaults, onChange }) {
+  const [text, setText] = useState("");
+
+  const handleAdd = () => {
+    const v = text.trim();
+    if (!v || items.includes(v)) return;
+    onChange([...items, v]);
+    setText("");
+  };
+
+  const handleRemove = (v) => {
+    onChange(items.filter((x) => x !== v));
+  };
+
+  const handleResetDefaults = () => {
+    if (!window.confirm("このプリセットを初期状態に戻しますか?")) return;
+    onChange(defaults);
+  };
+
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div style={styles.fieldLabel}>
+        {icon}
+        {label}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+        {items.length === 0 && <span style={{ fontSize: 12.5, color: COLORS.inkMuted }}>プリセットがありません</span>}
+        {items.map((item) => (
+          <span key={item} style={styles.presetTag}>
+            {item}
+            <button onClick={() => handleRemove(item)} style={styles.presetTagRemove} aria-label={`${item}を削除`}>
+              <X size={12} />
+            </button>
+          </span>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleAdd();
+            }
+          }}
+          style={{ ...styles.input, flex: 1 }}
+        />
+        <button onClick={handleAdd} style={styles.presetAddBtn} aria-label="プリセットを追加">
+          <Plus size={18} />
+        </button>
+      </div>
+      <button onClick={handleResetDefaults} style={styles.presetResetLink}>
+        初期設定に戻す
+      </button>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   使用上の注意画面
+--------------------------------------------------------------- */
+function CautionScreen({ onBack }) {
+  return (
+    <div style={styles.screen}>
+      <Header title="使用上の注意" onBack={onBack} />
+      <div style={{ padding: "18px 18px 40px", overflowY: "auto" }}>
+        <div style={styles.cautionIntro}>
+          <AlertTriangle size={20} color={COLORS.accent} />
+          <span>ニトロール記録アプリをお使いいただく前に、以下の点にご注意ください。</span>
+        </div>
+        {CAUTION_SECTIONS.map((section) => (
+          <div key={section.title} style={styles.cautionCard}>
+            <div style={styles.cautionCardTitle}>{section.title}</div>
+            <ul style={styles.cautionList}>
+              {section.items.map((item, i) => (
+                <li key={i} style={styles.cautionListItem}>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -600,6 +768,12 @@ export default function App() {
   const [storageError, setStorageError] = useState(false);
   const [records, setRecords] = useState(() => loadFromStorage(STORAGE_KEY, []));
   const [visits, setVisits] = useState(() => loadFromStorage(STORAGE_KEY_VISITS, {}));
+  const [locationPresets, setLocationPresets] = useState(() =>
+    loadFromStorage(STORAGE_KEY_LOCATION_PRESETS, DEFAULT_LOCATION_CHIPS)
+  );
+  const [activityPresets, setActivityPresets] = useState(() =>
+    loadFromStorage(STORAGE_KEY_ACTIVITY_PRESETS, DEFAULT_ACTIVITY_CHIPS)
+  );
   const [screen, setScreen] = useState("home");
   const [draft, setDraft] = useState(null);
   const [returnTo, setReturnTo] = useState("home");
@@ -631,6 +805,16 @@ export default function App() {
     },
     [persistVisits]
   );
+
+  const updateLocationPresets = useCallback((next) => {
+    setLocationPresets(next);
+    if (!saveToStorage(STORAGE_KEY_LOCATION_PRESETS, next)) setStorageError(true);
+  }, []);
+
+  const updateActivityPresets = useCallback((next) => {
+    setActivityPresets(next);
+    if (!saveToStorage(STORAGE_KEY_ACTIVITY_PRESETS, next)) setStorageError(true);
+  }, []);
 
   const handleToggleVisit = (dateStr) => {
     const next = { ...visits };
@@ -739,6 +923,8 @@ export default function App() {
               setViewMonth(new Date());
               setScreen("calendar");
             }}
+            onGoPresets={() => setScreen("presets")}
+            onGoCaution={() => setScreen("caution")}
             onReset={handleReset}
           />
         )}
@@ -747,12 +933,26 @@ export default function App() {
           <FormScreen
             draft={draft}
             isEditing={!!draft.id}
+            locationPresets={locationPresets}
+            activityPresets={activityPresets}
             onChange={setDraft}
             onSave={handleSave}
             onCancel={() => setScreen(returnTo === "day" ? "day" : returnTo === "calendar" ? "calendar" : "home")}
             onDelete={handleDelete}
           />
         )}
+
+        {screen === "presets" && (
+          <PresetsScreen
+            locationPresets={locationPresets}
+            activityPresets={activityPresets}
+            onUpdateLocation={updateLocationPresets}
+            onUpdateActivity={updateActivityPresets}
+            onBack={() => setScreen("home")}
+          />
+        )}
+
+        {screen === "caution" && <CautionScreen onBack={() => setScreen("home")} />}
 
         {screen === "calendar" && (
           <CalendarScreen
@@ -943,6 +1143,100 @@ const styles = {
     color: COLORS.inkMuted,
     fontSize: 12,
     textDecoration: "underline",
+  },
+  secondaryLink: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: "10px 8px",
+    borderRadius: 12,
+    border: `1px solid ${COLORS.border}`,
+    background: COLORS.surface,
+    color: COLORS.primary,
+    fontWeight: 700,
+    fontSize: 12.5,
+  },
+  presetTag: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "7px 8px 7px 13px",
+    borderRadius: 999,
+    border: `1.3px solid ${COLORS.border}`,
+    background: COLORS.surface,
+    color: COLORS.ink,
+    fontSize: 12.5,
+    fontWeight: 600,
+  },
+  presetTagRemove: {
+    width: 18,
+    height: 18,
+    borderRadius: 999,
+    border: "none",
+    background: COLORS.surfaceAlt,
+    color: COLORS.inkMuted,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  presetAddBtn: {
+    width: 46,
+    borderRadius: 12,
+    border: "none",
+    background: COLORS.primary,
+    color: COLORS.surface,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  presetResetLink: {
+    marginTop: 10,
+    padding: "6px 0",
+    border: "none",
+    background: "transparent",
+    color: COLORS.inkMuted,
+    fontSize: 11.5,
+    textDecoration: "underline",
+  },
+  cautionIntro: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "12px 14px",
+    borderRadius: 14,
+    background: COLORS.accentSoft,
+    color: COLORS.primaryDark,
+    fontSize: 13,
+    fontWeight: 600,
+    lineHeight: 1.6,
+    marginBottom: 18,
+  },
+  cautionCard: {
+    background: COLORS.surface,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: 16,
+    padding: "16px 16px 14px",
+    marginBottom: 14,
+  },
+  cautionCardTitle: {
+    fontWeight: 800,
+    fontSize: 14.5,
+    color: COLORS.primaryDark,
+    marginBottom: 8,
+  },
+  cautionList: {
+    margin: 0,
+    paddingLeft: 18,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+  cautionListItem: {
+    fontSize: 13,
+    color: COLORS.ink,
+    lineHeight: 1.6,
   },
   fieldLabel: {
     display: "flex",

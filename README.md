@@ -34,35 +34,31 @@ git push -u origin main
 
 > 認証を求められたら、パスワードの代わりに GitHub の Personal Access Token を使うか、GitHub CLI (`gh auth login`) でログイン済みの状態にしておくとスムーズです。
 
-### リポジトリ名を変更した場合の注意
-
-`vite.config.js` の中の `REPO_NAME` を、実際のリポジトリ名に合わせて変更してください。
-
-```js
-const REPO_NAME = "nitorol-log"; // ← ここを変更
-```
-
-変更したら、コミットしてpushし直してください。
-
 ---
 
-## 3. GitHub Pagesで公開する
+## 3. Netlifyで公開する
 
-1. GitHubのリポジトリページで **Settings → Pages** を開く
-2. 「Build and deployment」の **Source** を **GitHub Actions** に設定
-3. `main` ブランチにpushすると、自動でビルド・公開されます(`.github/workflows/deploy.yml` が実行されます)
-4. 数分後、`https://<あなたのユーザー名>.github.io/<リポジトリ名>/` でアクセスできるようになります
+このアプリは **Netlify** で公開する構成になっています(`netlify.toml` 同梱)。GitHub Pagesは使いません。
 
-Actionsタブで進行状況を確認できます。
+> 補足: 同じ `<ユーザー名>.github.io` ドメインの下に複数のPWAを置くと、Android側が2つ目以降を「ホーム画面へのショートカット」としてしか扱えず、独立アプリとしてインストールできないことがあります。Netlifyはプロジェクトごとに専用ドメイン(例: `nitorol-log.netlify.app`)が自動発行されるため、他のPWA(例: 別途作成したMLBアプリ)と衝突せず、単独アプリとしてインストールできます。
+
+1. [Netlify](https://www.netlify.com/) にアクセスし、GitHubアカウントでサインアップ/ログインする
+2. ダッシュボードで **Add new site → Import an existing project** を選択
+3. **GitHub** を選び、このリポジトリを選択する
+4. ビルド設定は `netlify.toml` から自動で読み込まれます(Build command: `npm run build` / Publish directory: `dist`)。そのまま **Deploy** をクリック
+5. 数分後、`https://<自動生成された名前>.netlify.app` でアクセスできるようになります
+6. 好みのURLにしたい場合は、**Site settings → Change site name** から変更できます(例: `nitorol-log.netlify.app`)
+7. 以降は `main` ブランチにpushするたびに自動で再デプロイされます
 
 ---
 
 ## 4. Android端末にインストールする(ホーム画面に追加)
 
-1. Nothing Phone (3) の **Chrome** で、公開されたURLを開く
+1. Nothing Phone (3) の **Chrome** で、Netlifyで公開されたURL(`https://xxxx.netlify.app`)を開く
 2. 数秒待つと、画面下に「ホーム画面に追加」または「アプリをインストール」というバナーが出ます
    - 出ない場合は、右上の「⋮」メニュー → **「アプリをインストール」** または **「ホーム画面に追加」**
 3. インストールすると、他のアプリと同じようにホーム画面にアイコンが追加され、単独のウィンドウ(アドレスバーなし)で起動します
+4. 以前 GitHub Pages 版を「ホーム画面に追加」していた場合は、そのショートカットは削除しておいてください(古いURLを指したままになります)
 
 ---
 
